@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Check for browser compatibility
+        if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+            alert("Speech recognition not supported in this browser.");
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100 font-sans flex items-center justify-center h-screen">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full">
+        <h1 class="text-2xl font-bold text-center mb-4">Emotion Detection</h1>
+
+        <div class="mb-4">
+            <label for="textInput" class="block text-lg font-medium">Input Text</label>
+            <textarea id="textInput" rows="4" class="w-full p-2 border rounded-md mt-2"></textarea>
+        </div>
+
+        <button id="voiceInputBtn" class="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600">Start Voice Input</button>
+
+        <div class="mt-4">
+            <button id="predictBtn" class="w-full bg-green-500 text-white p-2 rounded-md hover:bg-green-600">Predict Emotion</button>
+        </div>
+
+        <div id="emotionResult" class="mt-4 text-center text-xl"></div>
+
+        <div id="errorMessage" class="mt-4 text-center text-red-500 hidden"></div>
+
+        <script>
+            // Voice input setup
+            const voiceInputBtn = document.getElementById('voiceInputBtn');
+            const textInput = document.getElementById('textInput');
+            const predictBtn = document.getElementById('predictBtn');
+            const emotionResult = document.getElementById('emotionResult');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            let recognition;
+            if ('SpeechRecognition' in window) {
+                recognition = new SpeechRecognition();
+            } else {
+                recognition = new webkitSpeechRecognition();
+            }
+
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            voiceInputBtn.addEventListener('click', () => {
+                recognition.start();
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                textInput.value = transcript;
+            };
+
+            recognition.onerror = (event) => {
+                errorMessage.textContent = 'Error with speech recognition: ' + event.error;
+                errorMessage.classList.remove('hidden');
+            };
+
+            // Predict emotion using Flask backend
+            predictBtn.addEventListener('click', () => {
+                const text = textInput.value.trim();
+                if (text === '') {
+                    alert('Please enter some text.');
+                    return;
+                }
+
+                fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        const emotion = data.emotion;
+                        emotionResult.textContent = `Predicted Emotion: ${emotion}`;
+                        speakOut(`The predicted emotion is ${emotion}`);
+                    })
+                    .catch(error => {
+                        errorMessage.textContent = 'Error with prediction: ' + error;
+                        errorMessage.classList.remove('hidden');
+                    });
+            });
+
+            // Function to speak the result
+            function speakOut(text) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
+            }
+        </script>
+    </div>
+</body>
+
+</html>
